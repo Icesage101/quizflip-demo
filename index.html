@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizFlip — Paste a quiz, get Kahoot / Blooket / Gimkit files</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root{--bg:#f6f7fb;--card:#fff;--ink:#1c2333;--muted:#5b6478;--line:#e2e6f0;--brand:#6c3ce9;--brand2:#46178f;--ok:#137333;--warn:#b3261e;--warnbg:#fdecea;--amber:#8a6100;--amberbg:#fff4d6}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:linear-gradient(135deg,var(--brand2),var(--brand));color:#fff;padding:28px 20px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+  header h1{margin:0;font-size:32px} header p{margin:8px 0 0;opacity:.92;max-width:720px;line-height:1.45}
+  .badge{display:inline-block;background:#fff;color:var(--brand2);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;margin-bottom:10px}
+  main{padding:22px 0 48px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+  h2{margin:0 0 8px;font-size:19px} .hint{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 12px}
+  textarea{width:100%;min-height:230px;border:1px solid var(--line);border-radius:10px;padding:12px;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+  textarea:focus,input:focus,select:focus{outline:2px solid var(--brand);outline-offset:1px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{border:0;border-radius:9px;padding:11px 16px;font-weight:700;cursor:pointer;font-size:14px}
+  .primary{background:var(--brand);color:#fff}.primary:hover{background:var(--brand2)}
+  .ghost{background:#eef0f8;color:var(--ink);border:1px solid var(--line)}
+  .dl{background:var(--ok);color:#fff}.dl:disabled{background:#9aa3b5;cursor:not-allowed}
+  label.file{background:#eef0f8;border:1px solid var(--line);border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;font-size:14px}
+  #drop.drag{outline:3px dashed var(--brand)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:6px;vertical-align:top;text-align:left}
+  th{background:#f0f2fa;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  td input[type=text]{width:100%;min-width:90px;border:1px solid transparent;border-radius:6px;padding:6px;font-size:13px}
+  td input[type=text]:hover,td input[type=text]:focus{border-color:var(--line)}
+  td.correct input{background:#e6f4ea}
+  select{border:1px solid var(--line);border-radius:6px;padding:6px}
+  .warn{color:var(--warn);font-size:12px;line-height:1.4;margin-top:4px}
+  .warnrow{background:var(--warnbg)}
+  .pill{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700}
+  .pill.ok{background:#e6f4ea;color:var(--ok)} .pill.bad{background:var(--warnbg);color:var(--warn)}
+  .note{background:var(--amberbg);color:var(--amber);border-radius:9px;padding:10px 12px;font-size:13px;line-height:1.45;display:none}
+  .note.show{display:block}
+  .small{font-size:12px;color:var(--muted)} code{background:#eef0f8;padding:1px 5px;border-radius:4px}
+  footer{color:var(--muted);font-size:13px;padding:0 0 30px;line-height:1.5}
+  .del{background:none;color:var(--warn);padding:4px;font-size:16px}
+  @media(max-width:760px){table,thead,tbody,tr,th,td{display:block}thead{display:none}td{border:0}tr{border-bottom:2px solid var(--line);padding:8px 0}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <span class="badge">FREE • NO LOGIN • NOTHING LEAVES YOUR BROWSER</span>
+  <h1>✂️ QuizFlip</h1>
+  <p>Paste a messy quiz you already wrote — in Word, Docs, or notes — and download a clean import file for <b>Kahoot</b>, <b>Blooket</b>, or <b>Gimkit</b>. No re-typing questions card by card.</p>
+</div></header>
+
+<main class="wrap">
+  <section class="card" id="drop">
+    <h2>1. Paste your quiz</h2>
+    <p class="hint">Most formats work. Number your questions (or don't), label answers <code>A) B) C) D)</code> or <code>1. 2. 3. 4.</code>, and mark the right answer with <code>*</code>, <code>✓</code>, <code>(correct)</code>, or a line like <code>Answer: B</code>. You can also drop a <code>.txt</code> file here.</p>
+    <textarea id="input" placeholder="1. What is the capital of France?&#10;A) London&#10;B) Paris *&#10;C) Berlin&#10;D) Madrid&#10;&#10;2. Which planet is known as the Red Planet?&#10;A) Venus&#10;B) Jupiter&#10;C) Mars&#10;D) Saturn&#10;Answer: C"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="parseBtn">Convert quiz →</button>
+      <button class="ghost" id="sampleBtn">Load sample quiz</button>
+      <label class="file">Upload .txt file <input type="file" id="file" accept=".txt,text/plain" hidden></label>
+      <input type="text" id="title" placeholder="Quiz title (for filenames)" style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:9px;padding:10px">
+    </div>
+    <p class="small" style="margin-top:10px">Free tier: up to 10 questions free in this MVP. The paid hosted version ($19 one-time) removes the limit — this demo does not block your downloads.</p>
+  </section>
+
+  <section class="card" id="previewCard" style="display:none">
+    <h2>2. Check &amp; fix <span id="countPill" class="pill ok"></span></h2>
+    <p class="hint">Edit anything directly in the table. Pick the correct answer from the dropdown. Red rows need a fix before the game platforms will accept them — QuizFlip warns you here so the import doesn't fail later.</p>
+    <div class="note" id="freeNote"></div>
+    <div style="overflow-x:auto;margin-top:10px"><table>
+      <thead><tr><th>#</th><th style="min-width:220px">Question</th><th>Answer 1</th><th>Answer 2</th><th>Answer 3</th><th>Answer 4</th><th>Correct</th><th>Time</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <div class="row" style="margin-top:12px"><button class="ghost" id="addBtn">+ Add question</button><span class="small" id="warnSummary"></span></div>
+  </section>
+
+  <section class="card" id="exportCard" style="display:none">
+    <h2>3. Download your import file</h2>
+    <p class="hint">Then in Kahoot / Blooket / Gimkit choose <b>Create → Import spreadsheet / Import</b> and pick the file. Fix any red warnings above first.</p>
+    <div class="row">
+      <button class="dl" id="kahootBtn">⬇ Kahoot (.xlsx)</button>
+      <button class="dl" id="blooketBtn">⬇ Blooket (.csv)</button>
+      <button class="dl" id="gimkitBtn">⬇ Gimkit (.csv)</button>
+    </div>
+    <p class="small" style="margin-top:10px">Kahoot limits used for warnings: question ≤ 120 characters, each answer ≤ 75 characters. Time limits are exported in seconds.</p>
+  </section>
+</main>
+<footer class="wrap">QuizFlip runs 100% in your browser — your quiz is never uploaded anywhere. Made for teachers, tutors, and trainers who already wrote the questions once.</footer>
+
+<script>
+/* ================= Parser (also exercised by the Node test harness) ================= */
+function cleanMarker(s){
+  let had=false;
+  if(/(^|\s)(\*|✓|✔|✅)\s*$/.test(s) || /^\s*(\*|✓|✔|✅)\s*/.test(s) || /\(\s*correct\s*\)|\[\s*correct\s*\]/i.test(s)) had=true;
+  s=s.replace(/\(\s*correct\s*\)|\[\s*correct\s*\]/ig,'')
+     .replace(/\s*(\*|✓|✔|✅)\s*$/,'').replace(/^\s*(\*|✓|✔|✅)\s*/,'').trim();
+  return {text:s, marked:had};
+}
+function letterToIdx(ch){ if(!ch) return -1; ch=ch.trim().toUpperCase(); if(/[A-D]/.test(ch)) return ch.charCodeAt(0)-65; if(/[1-4]/.test(ch)) return parseInt(ch,10)-1; return -1; }
+
+function parseQuiz(text){
+  const lines = String(text||'').replace(/\r\n?/g,'\n').split('\n');
+  const questions=[]; let cur=null;
+  const flush=()=>{ if(cur && (cur.question || cur.answers.some(a=>a))) questions.push(cur); cur=null; };
+  const newQ=(q)=>{ flush(); cur={question:(q||'').trim(), answers:[], correct:-1, time:30}; };
+
+  for(let raw of lines){
+    let line=raw.trim();
+    if(!line){ /* blank line separates blocks, but don't flush mid-question until a new question starts; flush only if we already have answers */
+      if(cur && cur.answers.length) flush(); continue; }
+    // Standalone answer-declaration lines: "Answer: B", "Correct answer: 2", "Answer: Paris"
+    let am=line.match(/^(?:correct\s+)?answer\s*(?:is)?\s*[:\-–]\s*(.+)$/i);
+    if(am && cur){
+      let v=am[1].trim().replace(/\.*$/,'');
+      let idx=letterToIdx(v.length<=2?v:null);
+      if(idx>=0) cur.correct=idx;
+      else { let found=cur.answers.findIndex(a=>a.toLowerCase()===v.toLowerCase()); if(found>=0) cur.correct=found; }
+      continue;
+    }
+    // Correct answer on its own line: just "B", "C.", or "(D)"
+    let solo=line.match(/^\(?([A-Da-d1-4])\)?\.?$/);
+    if(solo && cur && cur.answers.length>=2){ let idx=letterToIdx(solo[1]); if(idx>=0){cur.correct=idx; continue;} }
+    // Question lines: "1. ", "1) ", "Q1. ", "Q1:", "Question 1:"
+    let qm=line.match(/^(?:Q(?:uestion)?\s*)?\d{1,3}\s*[\.\)\:\-]\s+(.+)$/i);
+    // Option lines: "A) ", "A. ", "A: ", "A - ", "(A) ", "- A) "
+    let om=line.match(/^(?:[-•]\s*)?\(?([A-Da-d])\s*[\)\.\:\-]\s+(.+)$/);
+    // Numbered option lines "1. text" — only treat as option if current question already started and option count <4 and line is not plausibly next question (heuristic: we are inside answers OR previous line was an option)
+    let nm=line.match(/^([1-4])\s*[\.\)]\s+(.+)$/);
+
+    if(om && cur && (cur.answers.length>0 || cur.question)){
+      let c=cleanMarker(om[2]); cur.answers.push(c.text); if(c.marked) cur.correct=cur.answers.length-1; continue;
+    }
+    // Numbered options take priority over "new numbered question" when the number is the
+    // next expected option number (1 with no answers yet, or answers.length+1 while filling options).
+    if(nm && cur && cur.question && cur.answers.length<4 && parseInt(nm[1],10)===cur.answers.length+1){
+      let c=cleanMarker(nm[2]); cur.answers.push(c.text); if(c.marked) cur.correct=cur.answers.length-1; continue;
+    }
+    if(qm && (!cur || cur.answers.length>0 || !cur.question)){
+      let c=cleanMarker(qm[1]); newQ(c.text); continue;
+    }
+    if(om && !cur){ newQ(''); let c=cleanMarker(om[2]); cur.answers.push(c.text); if(c.marked) cur.correct=0; continue; }
+    // Plain text line: a new question if no current / current already has answers, else a wrapped question or an unlabelled answer
+    if(!cur || cur.answers.length>=4){ let c=cleanMarker(line); newQ(c.text); continue; }
+    if(cur && !cur.question){ cur.question=line; continue; }
+    if(cur && cur.answers.length===0){
+      // Could be a wrapped question line or first unlabelled answer — append to question if it ends without typical answer brevity? Safer: treat short continuation as answer only if marked.
+      let c=cleanMarker(line);
+      if(c.marked){ cur.answers.push(c.text); cur.correct=0; }
+      else cur.question += ' ' + line;
+      continue;
+    }
+    // Unlabelled answer line inside a block
+    let c=cleanMarker(line); cur.answers.push(c.text); if(c.marked) cur.correct=cur.answers.length-1;
+  }
+  flush();
+  // Normalise: trim, cap at 4 answers (extras merged as warning via _extra count), pad answers array display handled by UI
+  questions.forEach(q=>{ q._extra=Math.max(0,q.answers.length-4); q.answers=q.answers.slice(0,4); q.time=q.time||30; });
+  return questions;
+}
+
+function warningsFor(q){
+  const w=[];
+  if(!q.question) w.push('Missing question text');
+  if(q.question && q.question.length>120) w.push('Question is '+q.question.length+' chars — Kahoot limit is 120');
+  q.answers.forEach((a,i)=>{ if(a && a.length>75) w.push('Answer '+(i+1)+' is '+a.length+' chars — Kahoot limit is 75'); });
+  if(q.answers.filter(a=>a&&a.trim()).length<2) w.push('Needs at least 2 answers');
+  if(q._extra>0) w.push('Had more than 4 answers — extra answers were dropped');
+  if(q.correct<0 || q.correct>=q.answers.length) w.push('No correct answer marked');
+  return w;
+}
+
+/* ================= Sample ================= */
+const SAMPLE = [
+'1. What is the capital of France?',
+'A) London','B) Paris *','C) Berlin','D) Madrid','',
+'2. Which planet is known as the Red Planet?',
+'A) Venus','B) Jupiter','C) Mars','D) Saturn','Answer: C','',
+'Q3: What is 7 x 8?',
+'1. 54','2. 56 ✓','3. 63','4. 48','',
+'4. Which gas do plants absorb for photosynthesis? (pick one)',
+'A) Oxygen','B) Nitrogen','C) Carbon dioxide (correct)','D) Hydrogen','',
+'5. Who wrote Romeo and Juliet?',
+'A) Charles Dickens','B) William Shakespeare','C) Jane Austen','D) Mark Twain','Answer: B'
+].join('\n');
+
+/* ================= UI ================= */
+let state=[];
+const $=id=>document.getElementById(id);
+function slug(s){return (s||'quiz').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'quiz'}
+function render(){
+  const tb=$('tbody'); tb.innerHTML=''; let totalWarn=0;
+  state.forEach((q,i)=>{
+    const w=warningsFor(q); totalWarn+=w.length;
+    const tr=document.createElement('tr'); if(w.length) tr.className='warnrow';
+    const ansCells=[0,1,2,3].map(ai=>{
+      const isC=q.correct===ai;
+      return '<td class="'+(isC?'correct':'')+'"><input type="text" data-q="'+i+'" data-a="'+ai+'" value="'+escapeHtml(q.answers[ai]||'')+'" placeholder="Answer '+(ai+1)+'"></td>';
+    }).join('');
+    tr.innerHTML='<td>'+(i+1)+'</td><td><input type="text" data-q="'+i+'" data-field="question" value="'+escapeHtml(q.question)+'">'+
+      (w.length?'<div class="warn">⚠ '+w.map(escapeHtml).join('<br>⚠ ')+'</div>':'')+'</td>'+ansCells+
+      '<td><select data-q="'+i+'" data-field="correct">'+[0,1,2,3].map(ai=>'<option value="'+ai+'"'+(q.correct===ai?' selected':'')+'>'+(ai+1)+'</option>').join('')+'<option value="-1"'+(q.correct<0?' selected':'')+'>— none —</option></select></td>'+
+      '<td><select data-q="'+i+'" data-field="time">'+[5,10,20,30,60,90,120,240].map(t=>'<option value="'+t+'"'+(q.time===t?' selected':'')+'>'+t+'s</option>').join('')+'</select></td>'+
+      '<td><button class="del" data-del="'+i+'" title="Delete question">✕</button></td>';
+    tb.appendChild(tr);
+  });
+  $('countPill').textContent=state.length+' question'+(state.length===1?'':'s');
+  $('countPill').className='pill '+(totalWarn?'bad':'ok');
+  $('warnSummary').textContent= totalWarn? totalWarn+' warning(s) to fix' : '✓ No warnings — ready to export';
+  const fn=$('freeNote');
+  if(state.length>10){ fn.className='note show'; fn.textContent='Heads up: you have '+state.length+' questions. The free tier of the hosted QuizFlip is up to 10 questions — the $19 one-time version removes the limit. This MVP does not block your download.'; }
+  else fn.className='note';
+  document.querySelectorAll('#tbody input, #tbody select').forEach(el=>{
+    el.addEventListener('change',e=>{
+      const qi=+e.target.dataset.q;
+      if(e.target.dataset.a!==undefined) state[qi].answers[+e.target.dataset.a]=e.target.value;
+      else if(e.target.dataset.field==='question') state[qi].question=e.target.value;
+      else if(e.target.dataset.field==='correct') state[qi].correct=+e.target.value;
+      else if(e.target.dataset.field==='time') state[qi].time=+e.target.value;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{state.splice(+b.dataset.del,1);render();}));
+}
+function escapeHtml(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function doParse(){
+  state=parseQuiz($('input').value);
+  if(!state.length){alert('No questions found. Try the sample quiz to see the format that works best.');return;}
+  $('previewCard').style.display='block'; $('exportCard').style.display='block'; render();
+  $('previewCard').scrollIntoView({behavior:'smooth'});
+}
+$('parseBtn').addEventListener('click',doParse);
+$('sampleBtn').addEventListener('click',()=>{$('input').value=SAMPLE; if(!$('title').value)$('title').value='Sample Quiz'; doParse();});
+$('addBtn').addEventListener('click',()=>{state.push({question:'',answers:['','','',''],correct:-1,time:30,_extra:0});render();});
+$('file').addEventListener('change',e=>{const f=e.target.files[0]; if(f) f.text().then(t=>{$('input').value=t;doParse();});});
+const drop=$('drop');
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag')});
+drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');const f=e.dataTransfer.files[0]; if(f) f.text().then(t=>{$('input').value=t;doParse();});});
+
+/* ================= Exports ================= */
+function csvCell(v){v=String(v??''); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function download(name, blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function base(){return 'quizflip-'+slug($('title').value)}
+function exportKahoot(){
+  if(typeof XLSX==='undefined'){alert('The spreadsheet library is still loading (or you are offline). Check your connection and try again — the CSV exports work without it.');return;}
+  const header=['Question - max 120 characters','Answer 1 - max 75 characters','Answer 2 - max 75 characters','Answer 3 - max 75 characters','Answer 4 - max 75 characters','Time limit (sec) – 5, 20, 30, 60, 90, 120, or 240 secs','Correct answer(s) – choose the number(s) of the correct answer(s); separate with comma if more than one'];
+  const rows=state.map(q=>[q.question,q.answers[0]||'',q.answers[1]||'',q.answers[2]||'',q.answers[3]||'',q.time,String(q.correct+1)]);
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]); ws['!cols']=[{wch:50},{wch:25},{wch:25},{wch:25},{wch:25},{wch:14},{wch:16}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
+  XLSX.writeFile(wb, base()+'-kahoot.xlsx');
+}
+function exportBlooket(){
+  const header=['Question #','Question Text','Answer 1','Answer 2','Answer 3','Answer 4','Time Limit (s)','Correct Answer (1-4)'];
+  const rows=state.map((q,i)=>[i+1,q.question,q.answers[0]||'',q.answers[1]||'',q.answers[2]||'',q.answers[3]||'',q.time,q.correct+1]);
+  const csv=[header,...rows].map(r=>r.map(csvCell).join(',')).join('\r\n');
+  download(base()+'-blooket.csv', new Blob([csv],{type:'text/csv'}));
+}
+function exportGimkit(){
+  const header=['Question','Correct Answer','Incorrect Answer 1','Incorrect Answer 2','Incorrect Answer 3'];
+  const rows=state.map(q=>{const inc=q.answers.filter((a,i)=>i!==q.correct && a); return [q.question, q.answers[q.correct]||'', inc[0]||'', inc[1]||'', inc[2]||''];});
+  const csv=[header,...rows].map(r=>r.map(csvCell).join(',')).join('\r\n');
+  download(base()+'-gimkit.csv', new Blob([csv],{type:'text/csv'}));
+}
+$('kahootBtn').addEventListener('click',exportKahoot);
+$('blooketBtn').addEventListener('click',exportBlooket);
+$('gimkitBtn').addEventListener('click',exportGimkit);
+</script>
+</body>
+</html>
